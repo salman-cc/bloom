@@ -851,6 +851,8 @@ const Dock = memo(function Dock() {
 		[]
 	);
 
+	useEffect(() => () => sendDockRegion.dispose(), [sendDockRegion]);
+
 	// Clip the dock window to what it draws (see window_region.rs). The bar
 	// gets a full-width band along the bottom, as tall as the expanded bar plus
 	// room for the icons' lift and tooltips above it, so its reveal and width

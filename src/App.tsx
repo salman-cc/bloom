@@ -724,6 +724,8 @@ function App() {
 	// Recomputes the notch window's region from the pill's target box and the
 	// floating parts drawn around it, and sends it if it changed. Reads only
 	// refs and the DOM, so it is safe to call from any callback.
+	useEffect(() => () => sendNotchRegion.dispose(), [sendNotchRegion]);
+
 	const updateNotchRegion = () => {
 		const wanted: RegionRect[] = [];
 		if (pillTargetRef.current) wanted.push(pillTargetRef.current);

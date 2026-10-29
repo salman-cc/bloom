@@ -929,6 +929,8 @@ function OverlayApp() {
 		[]
 	);
 
+	useEffect(() => () => sendOverlayRegion.dispose(), [sendOverlayRegion]);
+
 	// Clip the full-screen overlay to what it draws (see window_region.rs).
 	// The splashes cover the screen. Otherwise each HUD has a home zone at its
 	// edge, the full card size, so a card scaling in from the edge is never

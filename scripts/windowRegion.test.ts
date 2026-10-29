@@ -74,15 +74,20 @@ describe("window region", () => {
 	test("the sender clips to the window and sends only changes", () => {
 		// The display scale's media query, fired by hand below.
 		let scaleChanged = () => {};
+		let removedListeners = 0;
+		let addedListeners = 0;
 		const fakeWindow = {
 			innerWidth: 1000,
 			innerHeight: 500,
 			devicePixelRatio: 1,
 			matchMedia: () => ({
 				addEventListener: (_: string, listener: () => void) => {
+					addedListeners++;
 					scaleChanged = listener;
 				},
-				removeEventListener: () => {}
+				removeEventListener: () => {
+					removedListeners++;
+				}
 			})
 		};
 		(globalThis as { window?: unknown }).window = fakeWindow;
@@ -103,6 +108,9 @@ describe("window region", () => {
 		fakeWindow.devicePixelRatio = 1.5;
 		scaleChanged();
 		expect(sent).toEqual([clipped, clipped]);
+		expect(addedListeners).toBe(2); // the resolution query is re-armed
+		send.dispose();
+		expect(removedListeners).toBe(2);
 	});
 
 	test("reports no change when nothing moved", () => {
