@@ -23,11 +23,19 @@ fn physical_rects(rects: &[IntRect], scale: f64) -> Vec<RECT> {
     rects
         .iter()
         .filter(|r| r.width > 0 && r.height > 0)
-        .map(|r| RECT {
-            left: (r.x as f64 * scale).floor() as i32,
-            top: (r.y as f64 * scale).floor() as i32,
-            right: ((r.x + r.width) as f64 * scale).ceil() as i32,
-            bottom: ((r.y + r.height) as f64 * scale).ceil() as i32,
+        .map(|r| {
+            // Promote before adding: IPC rectangles are caller-provided and
+            // `i32` addition can panic in debug builds (or wrap in release).
+            // Float-to-int casts saturate, keeping extreme inputs inside the
+            // representable Win32 coordinate range.
+            let right = i64::from(r.x) + i64::from(r.width);
+            let bottom = i64::from(r.y) + i64::from(r.height);
+            RECT {
+                left: (f64::from(r.x) * scale).floor() as i32,
+                top: (f64::from(r.y) * scale).floor() as i32,
+                right: (right as f64 * scale).ceil() as i32,
+                bottom: (bottom as f64 * scale).ceil() as i32,
+            }
         })
         .collect()
 }
@@ -97,5 +105,19 @@ mod tests {
     fn drops_empty_rectangles() {
         let scaled = physical_rects(&[rect(0, -100, 140, 0), rect(5, 5, 0, 10)], 2.0);
         assert!(scaled.is_empty());
+    }
+
+    #[test]
+    fn handles_extreme_ipc_coordinates_without_overflow() {
+        let scaled = physical_rects(&[rect(i32::MAX - 2, i32::MIN, 10, i32::MAX)], 1.0);
+        assert_eq!(
+            scaled,
+            vec![RECT {
+                left: i32::MAX - 2,
+                top: i32::MIN,
+                right: i32::MAX,
+                bottom: -1,
+            }]
+        );
     }
 }

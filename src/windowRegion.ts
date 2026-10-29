@@ -99,11 +99,17 @@ export function measureElements(selectors: [string, number][]): RegionRect[] {
  * expires or the display scale changes. Rectangles are clipped to the window
  * first. Meant to live as long as its window.
  */
-export function createRegionSender(send: (rects: RegionRect[]) => void, holdMs = 700) {
+export type RegionSender = ((wanted: RegionRect[]) => void) & { dispose: () => void };
+
+export function createRegionSender(send: (rects: RegionRect[]) => void, holdMs = 700): RegionSender {
 	let state: RegionState = { key: "", current: [], held: [] };
 	let latest: RegionRect[] = [];
 	let timer: ReturnType<typeof setTimeout> | null = null;
-	const update = (wanted: RegionRect[]) => {
+	let stopWatching: (() => void) | null = null;
+	const update = ((wanted: RegionRect[]) => {
+		// Register lazily: creating this sender during React render must not
+		// leak a media-query listener if StrictMode discards that render.
+		if (!stopWatching) stopWatching = onPixelRatioChange(() => update(latest));
 		latest = wanted;
 		const current = wanted
 			.map((r) => clipToWindow(r, window.innerWidth, window.innerHeight))
@@ -116,8 +122,13 @@ export function createRegionSender(send: (rects: RegionRect[]) => void, holdMs =
 			next.nextExpiry === null
 				? null
 				: setTimeout(() => update(latest), next.nextExpiry - performance.now() + 5);
+	}) as RegionSender;
+	update.dispose = () => {
+		if (timer) clearTimeout(timer);
+		timer = null;
+		stopWatching?.();
+		stopWatching = null;
 	};
-	onPixelRatioChange(() => update(latest));
 	return update;
 }
 
